@@ -21,7 +21,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git zip unzip openjdk-17-jdk python3-pip             autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev             libtinfo6 cmake libffi-dev libssl-dev
+          sudo apt-get install -y build-essential git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
       - name: Install Buildozer
         run: |
           python3 -m pip install --user --upgrade pip setuptools wheel
@@ -29,7 +29,26 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Build debug APK
         working-directory: expense-tracker
-        run: buildozer -v android debug
+        shell: bash
+        run: |
+          set +e
+          buildozer -v android debug
+          first_status=$?
+          if [ "$first_status" -ne 0 ]; then
+            echo "First pass initialized python-for-android; patching pip's Android wheel target handling."
+            P4A_BUILD_FILE="$(find .buildozer -path '*/pythonforandroid/build.py' -print -quit)"
+            if [ -z "$P4A_BUILD_FILE" ]; then
+              echo "python-for-android build.py was not found"
+              exit "$first_status"
+            fi
+            grep -q "pip install -v --target" "$P4A_BUILD_FILE" || {
+              echo "Expected pip install command was not found; refusing unsafe patch."
+              exit "$first_status"
+            }
+            sed -i 's/pip install -v --target/pip install -v --platform=android_24_arm64_v8a --python-version=3.14.2 --only-binary=:all: --target/' "$P4A_BUILD_FILE"
+            echo "Patched: $P4A_BUILD_FILE"
+            buildozer -v android debug
+          fi
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
