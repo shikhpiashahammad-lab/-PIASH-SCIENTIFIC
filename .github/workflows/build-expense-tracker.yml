@@ -36,17 +36,13 @@ jobs:
           first_status=$?
           if [ "$first_status" -ne 0 ]; then
             echo "First pass initialized python-for-android; patching pip's Android wheel target handling."
-            P4A_BUILD_FILE="$(find .buildozer -path '*/pythonforandroid/build.py' -print -quit)"
-            if [ -z "$P4A_BUILD_FILE" ]; then
-              echo "python-for-android build.py was not found"
+            P4A_REQ_FILE="$(find .buildozer -path '*/build/requirements.txt' -print -quit)"
+            if [ -z "$P4A_REQ_FILE" ]; then
+              echo "Generated python-for-android requirements file was not found"
               exit "$first_status"
             fi
-            grep -q "pip install -v --target" "$P4A_BUILD_FILE" || {
-              echo "Expected pip install command was not found; refusing unsafe patch."
-              exit "$first_status"
-            }
-            sed -i "s|pip install -v --target|sed -i '/charset_normalizer/d' requirements.txt && pip install -v --target|" "$P4A_BUILD_FILE"
-            echo "Patched: $P4A_BUILD_FILE"
+            echo "Removing incompatible optional charset_normalizer wheel from: $P4A_REQ_FILE"
+            sed -i '/charset[_-]normalizer/d' "$P4A_REQ_FILE"
             buildozer -v android debug
           fi
       - name: Upload APK
