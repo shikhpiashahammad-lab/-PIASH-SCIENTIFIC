@@ -45,7 +45,7 @@ jobs:
               echo "Expected pip install command was not found; refusing unsafe patch."
               exit "$first_status"
             }
-            sed -i 's/pip install -v --target/pip install -v --platform=android_24_arm64_v8a --python-version=3.14.2 --only-binary=:all: --target/' "$P4A_BUILD_FILE"
+            sed -i "s|pip install -v --target|sed -i '/charset_normalizer/d' requirements.txt && pip install -v --target|" "$P4A_BUILD_FILE"
             echo "Patched: $P4A_BUILD_FILE"
             buildozer -v android debug
           fi
