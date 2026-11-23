@@ -13,39 +13,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
+          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-setuptools python3-wheel build-essential autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+
       - name: Install Buildozer
         run: |
-          python3 -m pip install --user --upgrade pip setuptools wheel
-          python3 -m pip install --user buildozer cython==0.29.36
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          python -m pip install --upgrade pip
+          pip install git+https://github.com/kivy/buildozer
+          pip install legacy-cgi setuptools cython==0.29.34
+
       - name: Build debug APK
         working-directory: expense-tracker
-        shell: bash
-        run: |
-          set +e
-          buildozer -v android debug
-          first_status=$?
-          if [ "$first_status" -ne 0 ]; then
-            echo "First pass initialized python-for-android; patching pip's Android wheel target handling."
-            P4A_REQ_FILE="$(find .buildozer -path '*/build/requirements.txt' -print -quit)"
-            if [ -z "$P4A_REQ_FILE" ]; then
-              echo "Generated python-for-android requirements file was not found"
-              exit "$first_status"
-            fi
-            echo "Removing incompatible optional charset_normalizer wheel from: $P4A_REQ_FILE"
-            sed -i '/charset[_-]normalizer/d' "$P4A_REQ_FILE"
-            buildozer -v android debug
-          fi
-      - name: Upload APK
+        run: buildozer android debug
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: expense-tracker-debug-apk
